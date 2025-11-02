@@ -74,16 +74,23 @@ jobs:
           strip_components: 0
 
       - name: Copy .sqsh to SLURM host with rsync (shows progress)
+        env:
+          SLURM_SSH_PORT: ${{ secrets.SLURM_SSH_PORT }}
+          SLURM_SSH_KEY: ${{ secrets.SLURM_SSH_KEY }}
+          SLURM_USER: ${{ secrets.SLURM_USER }}
+          SLURM_HOST: ${{ secrets.SLURM_HOST }}
+          REMOTE_DIR: ${{ env.REMOTE_DIR }}
         run: |
           set -euo pipefail
           mkdir -p ~/.ssh
-          echo "${{ secrets.SLURM_SSH_KEY }}" > ~/.ssh/slurm_key
+
+          printf '%s\n' "$SLURM_SSH_KEY" > ~/.ssh/slurm_key
           chmod 600 ~/.ssh/slurm_key
 
-          rsync -avP -e "ssh -i ~/.ssh/slurm_key -p ${secrets.SLURM_SSH_PORT} -o StrictHostKeyChecking=no" \
+          SSH_PORT="${{ secrets.SLURM_SSH_PORT || '22' }}"
+          rsync -avP -e "ssh -i ~/.ssh/slurm_key -p ${SSH_PORT} -o StrictHostKeyChecking=no" \
             distributed-gpu-test.sqsh \
-            "${{ secrets.SLURM_USER }}@${{ secrets.SLURM_HOST }}:${{ env.REMOTE_DIR }}"
-
+            "${SLURM_USER}@${SLURM_HOST}:${REMOTE_DIR}"
         shell: bash
 
   test-on-slurm:
