@@ -86,8 +86,9 @@ jobs:
 
           printf '%s\n' "$SLURM_SSH_KEY" > ~/.ssh/slurm_key
           chmod 600 ~/.ssh/slurm_key
-    
-          rsync -avP -e "ssh -i ~/.ssh/slurm_key -p ${SLURM_SSH_PORT} -o StrictHostKeyChecking=no" \
+
+          SSH_PORT="${{ secrets.SLURM_SSH_PORT || '22' }}"
+          rsync -avP -e "ssh -i ~/.ssh/slurm_key -p ${SSH_PORT} -o StrictHostKeyChecking=no" \
             distributed-gpu-test.sqsh \
             "${SLURM_USER}@${SLURM_HOST}:${REMOTE_DIR}"
         shell: bash
