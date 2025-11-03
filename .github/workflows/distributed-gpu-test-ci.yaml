@@ -62,16 +62,16 @@ jobs:
       #     script: |
       #       mkdir -p "${{ env.REMOTE_DIR }}"
 
-      # - name: slurm_train.sbatch and train.py to SLURM host
-      #   uses: appleboy/scp-action@v0.1.7
-      #   with:
-      #     host: ${{ secrets.SLURM_HOST }}
-      #     username: ${{ secrets.SLURM_USER }}
-      #     key: ${{ secrets.SLURM_SSH_KEY }}
-      #     port: ${{ secrets.SLURM_SSH_PORT }}
-      #     source: "slurm_train.sbatch,train.py"
-      #     target: "${{ env.REMOTE_DIR }}"
-      #     strip_components: 0
+      - name: slurm_train.sbatch and train.py to SLURM host
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SLURM_HOST }}
+          username: ${{ secrets.SLURM_USER }}
+          key: ${{ secrets.SLURM_SSH_KEY }}
+          port: ${{ secrets.SLURM_SSH_PORT }}
+          source: "slurm_train.sbatch,train.py"
+          target: "${{ env.REMOTE_DIR }}"
+          strip_components: 0
 
       # - name: Copy .sqsh to SLURM host with rsync (shows progress)
       #   env:
