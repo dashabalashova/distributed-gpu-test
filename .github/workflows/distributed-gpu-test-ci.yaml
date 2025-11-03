@@ -97,8 +97,9 @@ jobs:
     needs: build
     runs-on: [self-hosted, docker-host]
     steps:
-      - name: Run remote test – submit slurm job and wait
-        id: run_teset
+      - id: run_teset
+        name: Run remote test – submit slurm job and wait
+        # id: run_teset
         uses: appleboy/ssh-action@v0.1.7
         with:
           host: ${{ secrets.SLURM_HOST }}
@@ -207,33 +208,41 @@ jobs:
               echo "Job $JOB_ID state: $STATE — sleeping 10s..."
               sleep 10
             done
+
+      - id: set_slurm_status
+        name: Set job output based on previous step
+        if: ${{ success() }}
+        run: |
+          echo "slurm_status=success" >> $GITHUB_OUTPUT
+
+      - id: set_slurm_status_fail
+        name: Set job output on failure
+        if: ${{ failure() }}
+        run: |
+          echo "slurm_status=failed" >> $GITHUB_OUTPUT
             
   publish:
     name: Publish image to GHCR (only if SLURM job success)
     needs: [build, test-on-slurm]
-    steps:
-      - name: Debug needs.status
-        run: |
-          echo "needs.test-on-slurm.result='${{ needs.test-on-slurm.result }}'"
-          echo "needs.build.result='${{ needs.build.result }}'"
     # if: ${{ needs.test-on-slurm.result == 'success' }}
-    # runs-on: [self-hosted, docker-host]
-    # env:
-    #   IMAGE_NAME: ghcr.io/dashabalashova/distributed-gpu-test
-    #   IMAGE_TAG: ${{ needs.build.outputs.image-tag }}
-    # steps:
-    #   - name: Ensure image exists locally and push to GHCR
-    #     env:
-    #       CR_PAT: ${{ secrets.CR_PAT }}
-    #     run: |
-    #       set -euo pipefail
-    #       TAG="${IMAGE_NAME}:${IMAGE_TAG}"
-    #       if ! docker image inspect "$TAG" >/dev/null 2>&1; then
-    #         echo "Image $TAG not found in local docker. Available images:"
-    #         docker images --format 'table {{.Repository}}\t{{.Tag}}\t{{.ID}}\t{{.Size}}' || true
-    #         exit 2
-    #       fi
-    #       echo "Logging in to ghcr.io"
-    #       echo "${CR_PAT}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
-    #       echo "Pushing $TAG"
-    #       # docker push "$TAG"
+    if: ${{ needs['test-on-slurm'].outputs.slurm_status == 'success' }}
+    runs-on: [self-hosted, docker-host]
+    env:
+      IMAGE_NAME: ghcr.io/dashabalashova/distributed-gpu-test
+      IMAGE_TAG: ${{ needs.build.outputs.image-tag }}
+    steps:
+      - name: Ensure image exists locally and push to GHCR
+        env:
+          CR_PAT: ${{ secrets.CR_PAT }}
+        run: |
+          set -euo pipefail
+          TAG="${IMAGE_NAME}:${IMAGE_TAG}"
+          if ! docker image inspect "$TAG" >/dev/null 2>&1; then
+            echo "Image $TAG not found in local docker. Available images:"
+            docker images --format 'table {{.Repository}}\t{{.Tag}}\t{{.ID}}\t{{.Size}}' || true
+            exit 2
+          fi
+          echo "Logging in to ghcr.io"
+          echo "${CR_PAT}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          echo "Pushing $TAG"
+          # docker push "$TAG"
