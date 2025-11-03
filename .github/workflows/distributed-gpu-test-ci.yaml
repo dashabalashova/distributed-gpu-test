@@ -231,6 +231,8 @@ jobs:
       #       printf "len=%s\n" "${#SLURM_STATUS:-0}"
       #     env:
       #       SLURM_STATUS: ${{ needs.test-on-slurm.outputs.slurm_status }}
+    outputs:
+      slurm_status: ${{ steps.set_slurm_status.outputs.slurm_status }}
             
   publish:
     name: Publish image to GHCR (only if SLURM job success)
