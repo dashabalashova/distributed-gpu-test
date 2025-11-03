@@ -17,4 +17,8 @@ Secrets https://github.com/dashabalashova/distributed-gpu-test/settings/secrets/
 - SLURM_SSH_KEY
 - SLURM_SSH_PORT
 - SLURM_USER
-- 
+
+To run the container from the registry (instead of the .sqsh file):
+1. [configure authentication](https://docs.nebius.com/slurm-soperator/jobs/containers/pyxis-enroot#auth)
+2. replace `--container-image="$SLURM_SUBMIT_DIR/distributed-gpu-test.sqsh"` with
+`--container-image="ghcr.io/dashabalashova/distributed-gpu-test:v0.1.0"`
