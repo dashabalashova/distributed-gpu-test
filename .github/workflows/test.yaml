@@ -61,7 +61,7 @@ jobs:
           port: ${{ secrets.SLURM_SSH_PORT }}
           script: |
             mkdir -p "${{ env.REMOTE_DIR }}"
-            touch 123.txt
+            # touch 123.txt
 
       # - name: slurm_train.sbatch and train.py to SLURM host
       #   uses: appleboy/scp-action@v0.1.7
@@ -90,7 +90,7 @@ jobs:
 
           SSH_PORT="${{ secrets.SLURM_SSH_PORT || '22' }}"
           rsync -avP -e "ssh -i ~/.ssh/slurm_key -p ${SSH_PORT} -o StrictHostKeyChecking=no" \
-            touch 123.txt \
+            123.txt \
             "${SLURM_USER}@${SLURM_HOST}:${REMOTE_DIR}"
         shell: bash
 
