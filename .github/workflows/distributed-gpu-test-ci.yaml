@@ -223,14 +223,14 @@ jobs:
           echo "slurm_status=failed"
           echo "slurm_status=failed" >> $GITHUB_OUTPUT
 
-      - name: Debug show slurm_status from needs
-          run: |
-            echo "RAW needs.test-on-slurm.outputs.slurm_status: >>>${{ needs.test-on-slurm.outputs.slurm_status }}<<<"
-            echo "as env var:"
-            echo "SLURM_STATUS='${SLURM_STATUS:-}'"
-            printf "len=%s\n" "${#SLURM_STATUS:-0}"
-          env:
-            SLURM_STATUS: ${{ needs.test-on-slurm.outputs.slurm_status }}
+      # - name: Debug show slurm_status from needs
+      #     run: |
+      #       echo "RAW needs.test-on-slurm.outputs.slurm_status: >>>${{ needs.test-on-slurm.outputs.slurm_status }}<<<"
+      #       echo "as env var:"
+      #       echo "SLURM_STATUS='${SLURM_STATUS:-}'"
+      #       printf "len=%s\n" "${#SLURM_STATUS:-0}"
+      #     env:
+      #       SLURM_STATUS: ${{ needs.test-on-slurm.outputs.slurm_status }}
             
   publish:
     name: Publish image to GHCR (only if SLURM job success)
@@ -240,13 +240,13 @@ jobs:
     runs-on: [self-hosted, docker-host]
     steps:
       - name: Debug show slurm_status from needs
-          run: |
-            echo "RAW needs.test-on-slurm.outputs.slurm_status: >>>${{ needs.test-on-slurm.outputs.slurm_status }}<<<"
-            echo "as env var:"
-            echo "SLURM_STATUS='${SLURM_STATUS:-}'"
-            printf "len=%s\n" "${#SLURM_STATUS:-0}"
-          env:
-            SLURM_STATUS: ${{ needs.test-on-slurm.outputs.slurm_status }}
+        run: |
+          echo "RAW needs.test-on-slurm.outputs.slurm_status: >>>${{ needs.test-on-slurm.outputs.slurm_status }}<<<"
+          echo "as env var:"
+          echo "SLURM_STATUS='${SLURM_STATUS:-}'"
+          printf "len=%s\n" "${#SLURM_STATUS:-0}"
+        env:
+          SLURM_STATUS: ${{ needs.test-on-slurm.outputs.slurm_status }}
 
     
     # if: ${{ needs['test-on-slurm'].outputs.slurm_status == 'success' }}
