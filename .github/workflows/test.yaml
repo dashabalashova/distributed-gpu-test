@@ -89,7 +89,7 @@ jobs:
           chmod 600 ~/.ssh/slurm_key
 
           # SSH_PORT="${{ secrets.SLURM_SSH_PORT || '22' }}"
-          rsync -avP -e "ssh -i ~/.ssh/slurm_key -p "${{ secrets.SLURM_SSH_PORT || '22' }}" -o StrictHostKeyChecking=no" \
+          rsync -avP -e "ssh -i ~/.ssh/slurm_key -p "${{ secrets.SLURM_SSH_PORT }}" -o StrictHostKeyChecking=no" \
             test.txt \
             "${SLURM_USER}@${SLURM_HOST}:${REMOTE_DIR}"
         shell: bash
