@@ -90,7 +90,7 @@ jobs:
 
           SSH_PORT="${{ secrets.SLURM_SSH_PORT || '22' }}"
           rsync -avP -e "ssh -i ~/.ssh/slurm_key -p ${SSH_PORT} -o StrictHostKeyChecking=no" \
-            123.txt \
+            test.txt \
             "${SLURM_USER}@${SLURM_HOST}:${REMOTE_DIR}"
         shell: bash
 
