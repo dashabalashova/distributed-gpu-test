@@ -273,14 +273,14 @@ jobs:
             echo "as shell var: '${SLURM_STATUS}'"
             printf "len=%d\n" "${#SLURM_STATUS}"
     
-        # - name: Ensure image exists locally and push to GHCR
-        #   if: ${{ needs['test-on-slurm'].outputs.slurm_status == 'success' }}
-        #   env:
-        #     CR_PAT: ${{ secrets.CR_PAT }}
-        #   run: |
-        #     set -euo pipefail
-        #     TAG="${IMAGE_NAME}:${IMAGE_TAG}"
-        #     echo "Logging in to ghcr.io"
-        #     echo "${CR_PAT}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
-        #     echo "Pushing $TAG"
-        #     docker push "$TAG"
+        - name: Ensure image exists locally and push to GHCR
+          if: ${{ needs['test-on-slurm'].outputs.slurm_status == 'success' }}
+          env:
+            CR_PAT: ${{ secrets.CR_PAT }}
+          run: |
+            set -euo pipefail
+            TAG="${IMAGE_NAME}:${IMAGE_TAG}"
+            echo "Logging in to ghcr.io"
+            echo "${CR_PAT}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+            echo "Pushing $TAG"
+            # docker push "$TAG"
