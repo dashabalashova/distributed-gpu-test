@@ -32,35 +32,35 @@ jobs:
           echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
           echo "image_tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
 
-      # - name: Set up QEMU and buildx
-      #   uses: docker/setup-buildx-action@v2
+      - name: Set up QEMU and buildx
+        uses: docker/setup-buildx-action@v2
 
-      # - name: Build docker image (load into local docker daemon)
-      #   uses: docker/build-push-action@v5
-      #   with:
-      #     context: .
-      #     file: ./Dockerfile
-      #     push: false
-      #     load: true
-      #     tags: ${{ env.IMAGE_NAME }}:${{ steps.set-tag.outputs.image_tag }}
+      - name: Build docker image (load into local docker daemon)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: false
+          load: true
+          tags: ${{ env.IMAGE_NAME }}:${{ steps.set-tag.outputs.image_tag }}
 
-      # - name: Create enroot squashfs (.sqsh) from local Docker image
-      #   run: |
-      #     set -euo pipefail
-      #     SQSH_NAME="distributed-gpu-test.sqsh"
-      #     echo "Creating enroot squashfs: $SQSH_NAME from ${{ env.IMAGE_NAME }}:${{ steps.set-tag.outputs.image_tag }}"
-      #     enroot import --output "$SQSH_NAME" "dockerd://${{ env.IMAGE_NAME }}:${{ steps.set-tag.outputs.image_tag }}"
-      #     echo "SQSH_NAME=$SQSH_NAME" >> $GITHUB_ENV
+      - name: Create enroot squashfs (.sqsh) from local Docker image
+        run: |
+          set -euo pipefail
+          SQSH_NAME="distributed-gpu-test.sqsh"
+          echo "Creating enroot squashfs: $SQSH_NAME from ${{ env.IMAGE_NAME }}:${{ steps.set-tag.outputs.image_tag }}"
+          enroot import --output "$SQSH_NAME" "dockerd://${{ env.IMAGE_NAME }}:${{ steps.set-tag.outputs.image_tag }}"
+          echo "SQSH_NAME=$SQSH_NAME" >> $GITHUB_ENV
 
-      # - name: Ensure remote dir exists (on SLURM host)
-      #   uses: appleboy/ssh-action@v0.1.7
-      #   with:
-      #     host: ${{ secrets.SLURM_HOST }}
-      #     username: ${{ secrets.SLURM_USER }}
-      #     key: ${{ secrets.SLURM_SSH_KEY }}
-      #     port: ${{ secrets.SLURM_SSH_PORT }}
-      #     script: |
-      #       mkdir -p "${{ env.REMOTE_DIR }}"
+      - name: Ensure remote dir exists (on SLURM host)
+        uses: appleboy/ssh-action@v0.1.7
+        with:
+          host: ${{ secrets.SLURM_HOST }}
+          username: ${{ secrets.SLURM_USER }}
+          key: ${{ secrets.SLURM_SSH_KEY }}
+          port: ${{ secrets.SLURM_SSH_PORT }}
+          script: |
+            mkdir -p "${{ env.REMOTE_DIR }}"
 
       - name: slurm_train.sbatch and train.py to SLURM host
         uses: appleboy/scp-action@v0.1.7
@@ -73,24 +73,24 @@ jobs:
           target: "${{ env.REMOTE_DIR }}"
           strip_components: 0
 
-      # - name: Copy .sqsh to SLURM host with rsync (shows progress)
-      #   env:
-      #     SLURM_SSH_PORT: ${{ secrets.SLURM_SSH_PORT }}
-      #     SLURM_SSH_KEY: ${{ secrets.SLURM_SSH_KEY }}
-      #     SLURM_USER: ${{ secrets.SLURM_USER }}
-      #     SLURM_HOST: ${{ secrets.SLURM_HOST }}
-      #     REMOTE_DIR: ${{ env.REMOTE_DIR }}
-      #   run: |
-      #     set -euo pipefail
-      #     mkdir -p ~/.ssh
+      - name: Copy .sqsh to SLURM host with rsync (shows progress)
+        env:
+          SLURM_SSH_PORT: ${{ secrets.SLURM_SSH_PORT }}
+          SLURM_SSH_KEY: ${{ secrets.SLURM_SSH_KEY }}
+          SLURM_USER: ${{ secrets.SLURM_USER }}
+          SLURM_HOST: ${{ secrets.SLURM_HOST }}
+          REMOTE_DIR: ${{ env.REMOTE_DIR }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
 
-      #     printf '%s\n' "$SLURM_SSH_KEY" > ~/.ssh/slurm_key
-      #     chmod 600 ~/.ssh/slurm_key
+          printf '%s\n' "$SLURM_SSH_KEY" > ~/.ssh/slurm_key
+          chmod 600 ~/.ssh/slurm_key
 
-      #     rsync -avP -e "ssh -i ~/.ssh/slurm_key -p "${{ secrets.SLURM_SSH_PORT }}" -o StrictHostKeyChecking=no" \
-      #       distributed-gpu-test.sqsh \
-      #       "${SLURM_USER}@${SLURM_HOST}:${REMOTE_DIR}"
-      #   shell: bash
+          rsync -avP -e "ssh -i ~/.ssh/slurm_key -p "${{ secrets.SLURM_SSH_PORT }}" -o StrictHostKeyChecking=no" \
+            distributed-gpu-test.sqsh \
+            "${SLURM_USER}@${SLURM_HOST}:${REMOTE_DIR}"
+        shell: bash
 
   test-on-slurm:
     name: Test on remote SLURM
@@ -254,11 +254,6 @@ jobs:
           run: |
             set -euo pipefail
             TAG="${IMAGE_NAME}:${IMAGE_TAG}"
-            if ! docker image inspect "$TAG" >/dev/null 2>&1; then
-              echo "Image $TAG not found in local docker. Available images:"
-              docker images --format 'table {{.Repository}}\t{{.Tag}}\t{{.ID}}\t{{.Size}}' || true
-              exit 2
-            fi
             echo "Logging in to ghcr.io"
             echo "${CR_PAT}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
             echo "Pushing $TAG"
