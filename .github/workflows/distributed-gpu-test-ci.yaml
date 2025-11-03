@@ -223,14 +223,6 @@ jobs:
           echo "slurm_status=failed"
           echo "slurm_status=failed" >> $GITHUB_OUTPUT
 
-      # - name: Debug show slurm_status from needs
-      #     run: |
-      #       echo "RAW needs.test-on-slurm.outputs.slurm_status: >>>${{ needs.test-on-slurm.outputs.slurm_status }}<<<"
-      #       echo "as env var:"
-      #       echo "SLURM_STATUS='${SLURM_STATUS:-}'"
-      #       printf "len=%s\n" "${#SLURM_STATUS:-0}"
-      #     env:
-      #       SLURM_STATUS: ${{ needs.test-on-slurm.outputs.slurm_status }}
     outputs:
       slurm_status: ${{ steps.set_slurm_status.outputs.slurm_status }}
             
@@ -246,13 +238,10 @@ jobs:
         - name: Debug show slurm_status from needs
           shell: bash
           run: |
-            # raw печать (разворачивается до запуска shell)
             echo "RAW needs.test-on-slurm.outputs.slurm_status: >>>${{ needs['test-on-slurm'].outputs.slurm_status }}<<<"
     
-            # присвоим в shell-переменную и почистим возможные CR
             SLURM_STATUS="${{ needs['test-on-slurm'].outputs.slurm_status }}"
             SLURM_STATUS="${SLURM_STATUS//$'\r'/}"
-            # также уберём ведущие/хвостовые пробелы, если есть
             SLURM_STATUS="$(echo -n "$SLURM_STATUS" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
     
             echo "as shell var: '${SLURM_STATUS}'"
