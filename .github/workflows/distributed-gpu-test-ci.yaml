@@ -32,35 +32,35 @@ jobs:
           echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
           echo "image_tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
 
-      - name: Set up QEMU and buildx
-        uses: docker/setup-buildx-action@v2
+      # - name: Set up QEMU and buildx
+      #   uses: docker/setup-buildx-action@v2
 
-      - name: Build docker image (load into local docker daemon)
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ./Dockerfile
-          push: false
-          load: true
-          tags: ${{ env.IMAGE_NAME }}:${{ steps.set-tag.outputs.image_tag }}
+      # - name: Build docker image (load into local docker daemon)
+      #   uses: docker/build-push-action@v5
+      #   with:
+      #     context: .
+      #     file: ./Dockerfile
+      #     push: false
+      #     load: true
+      #     tags: ${{ env.IMAGE_NAME }}:${{ steps.set-tag.outputs.image_tag }}
 
-      - name: Create enroot squashfs (.sqsh) from local Docker image
-        run: |
-          set -euo pipefail
-          SQSH_NAME="distributed-gpu-test.sqsh"
-          echo "Creating enroot squashfs: $SQSH_NAME from ${{ env.IMAGE_NAME }}:${{ steps.set-tag.outputs.image_tag }}"
-          enroot import --output "$SQSH_NAME" "dockerd://${{ env.IMAGE_NAME }}:${{ steps.set-tag.outputs.image_tag }}"
-          echo "SQSH_NAME=$SQSH_NAME" >> $GITHUB_ENV
+      # - name: Create enroot squashfs (.sqsh) from local Docker image
+      #   run: |
+      #     set -euo pipefail
+      #     SQSH_NAME="distributed-gpu-test.sqsh"
+      #     echo "Creating enroot squashfs: $SQSH_NAME from ${{ env.IMAGE_NAME }}:${{ steps.set-tag.outputs.image_tag }}"
+      #     enroot import --output "$SQSH_NAME" "dockerd://${{ env.IMAGE_NAME }}:${{ steps.set-tag.outputs.image_tag }}"
+      #     echo "SQSH_NAME=$SQSH_NAME" >> $GITHUB_ENV
 
-      - name: Ensure remote dir exists (on SLURM host)
-        uses: appleboy/ssh-action@v0.1.7
-        with:
-          host: ${{ secrets.SLURM_HOST }}
-          username: ${{ secrets.SLURM_USER }}
-          key: ${{ secrets.SLURM_SSH_KEY }}
-          port: ${{ secrets.SLURM_SSH_PORT }}
-          script: |
-            mkdir -p "${{ env.REMOTE_DIR }}"
+      # - name: Ensure remote dir exists (on SLURM host)
+      #   uses: appleboy/ssh-action@v0.1.7
+      #   with:
+      #     host: ${{ secrets.SLURM_HOST }}
+      #     username: ${{ secrets.SLURM_USER }}
+      #     key: ${{ secrets.SLURM_SSH_KEY }}
+      #     port: ${{ secrets.SLURM_SSH_PORT }}
+      #     script: |
+      #       mkdir -p "${{ env.REMOTE_DIR }}"
 
       - name: slurm_train.sbatch and train.py to SLURM host
         uses: appleboy/scp-action@v0.1.7
@@ -73,24 +73,24 @@ jobs:
           target: "${{ env.REMOTE_DIR }}"
           strip_components: 0
 
-      - name: Copy .sqsh to SLURM host with rsync (shows progress)
-        env:
-          SLURM_SSH_PORT: ${{ secrets.SLURM_SSH_PORT }}
-          SLURM_SSH_KEY: ${{ secrets.SLURM_SSH_KEY }}
-          SLURM_USER: ${{ secrets.SLURM_USER }}
-          SLURM_HOST: ${{ secrets.SLURM_HOST }}
-          REMOTE_DIR: ${{ env.REMOTE_DIR }}
-        run: |
-          set -euo pipefail
-          mkdir -p ~/.ssh
+      # - name: Copy .sqsh to SLURM host with rsync (shows progress)
+      #   env:
+      #     SLURM_SSH_PORT: ${{ secrets.SLURM_SSH_PORT }}
+      #     SLURM_SSH_KEY: ${{ secrets.SLURM_SSH_KEY }}
+      #     SLURM_USER: ${{ secrets.SLURM_USER }}
+      #     SLURM_HOST: ${{ secrets.SLURM_HOST }}
+      #     REMOTE_DIR: ${{ env.REMOTE_DIR }}
+      #   run: |
+      #     set -euo pipefail
+      #     mkdir -p ~/.ssh
 
-          printf '%s\n' "$SLURM_SSH_KEY" > ~/.ssh/slurm_key
-          chmod 600 ~/.ssh/slurm_key
+      #     printf '%s\n' "$SLURM_SSH_KEY" > ~/.ssh/slurm_key
+      #     chmod 600 ~/.ssh/slurm_key
 
-          rsync -avP -e "ssh -i ~/.ssh/slurm_key -p "${{ secrets.SLURM_SSH_PORT }}" -o StrictHostKeyChecking=no" \
-            distributed-gpu-test.sqsh \
-            "${SLURM_USER}@${SLURM_HOST}:${REMOTE_DIR}"
-        shell: bash
+      #     rsync -avP -e "ssh -i ~/.ssh/slurm_key -p "${{ secrets.SLURM_SSH_PORT }}" -o StrictHostKeyChecking=no" \
+      #       distributed-gpu-test.sqsh \
+      #       "${SLURM_USER}@${SLURM_HOST}:${REMOTE_DIR}"
+      #   shell: bash
 
   test-on-slurm:
     name: Test on remote SLURM
@@ -119,95 +119,121 @@ jobs:
             sed -e "s/^#SBATCH --nodes=.*/#SBATCH --nodes=${NODES}/" \
                 -e "s/^#SBATCH --gres=gpu:.*/#SBATCH --gres=gpu:${GPUS}/" \
                 slurm_train.sbatch > slurm_train.submit.sbatch
+            rm -f "$PWD/job_status.txt"
             SBATCH_OUT=$(sbatch --export=ALL,GPUS_PER_NODE="$GPUS",NNODES="$NODES" slurm_train.submit.sbatch)
+            
             if [ -z "$SBATCH_OUT" ]; then
               echo "Failed to submit job; sbatch output: $SBATCH_OUT"
               exit 2
             fi
             JOB_ID=$(echo "$SBATCH_OUT" | awk '{print $NF}')
             echo "Submitted batch job $JOB_ID"
-        
-            START_TS=$(date +%s)
-            TIMEOUT=${{ env.SLURM_WAIT_TIMEOUT_SECONDS }}
-            if [ -z "$TIMEOUT" ]; then TIMEOUT=3600; fi
-        
-            STATUS_FILE="$PWD/job_status.txt"
-        
-            get_exit_code_from_sacct() {
-              INFO=$(sacct -j "$JOB_ID" --format=JobID,State,ExitCode -n -P 2>/dev/null || true)
-              if [ -z "$INFO" ]; then
-                return 1
-              fi
-              LINE=$(echo "$INFO" | sed -n '1p' | tr -d '\r' || true)
-              if [ -z "$LINE" ]; then
-                return 1
-              fi
-              SACCT_EXIT=$(echo "$LINE" | awk -F'|' '{print $3}' | awk -F: '{print $1}')
-              SACCT_STATE=$(echo "$LINE" | awk -F'|' '{print $2}')
-              if [ -z "$SACCT_EXIT" ]; then
-                return 1
-              fi
-              return 0
-            }
-        
-            while true; do
-              if squeue -j "$JOB_ID" -h -o "%T" >/dev/null 2>&1; then
-                STATE=$(squeue -j "$JOB_ID" -h -o "%T" | tr -d '\r' || true)
-              else
-                STATE=""
-              fi
-        
+
+            # ??? #
+
+            # --- simple polling: wait for job to disappear from squeue ---
+            JOB_POLL_INTERVAL=10   # seconds between squeue checks
+            JOB_POLL_MAX=30       # how many times to check (300*10s = 3000s total)
+            
+            echo "Polling squeue for job $JOB_ID (every ${JOB_POLL_INTERVAL}s, up to ${JOB_POLL_MAX} attempts)..."
+            
+            STATE=""
+            for (( i=0; i<JOB_POLL_MAX; i++ )); do
+              STATE=$(squeue -j "$JOB_ID" -h -o "%T" 2>/dev/null | tr -d '\r' || true)
               if [ -z "$STATE" ]; then
-                echo "Job $JOB_ID missing from squeue — checking sacct / status file..."
-                if command -v sacct >/dev/null 2>&1; then
-                  if get_exit_code_from_sacct; then
-                    echo "sacct reports state=${SACCT_STATE}, exit=${SACCT_EXIT}"
-                    if [ "$SACCT_EXIT" = "0" ]; then
-                      exit 0
-                    else
-                      exit "$SACCT_EXIT"
-                    fi
-                  else
-                    echo "sacct present but no ExitCode found; will wait shortly for $STATUS_FILE"
-                  fi
-                else
-                  echo "sacct not available; will wait shortly for $STATUS_FILE"
-                fi
-        
-                STATUS_WAIT=${{ env.SLURM_STATUS_WAIT_SECONDS }}
-                if [ -z "$STATUS_WAIT" ]; then
-                  STATUS_WAIT=180
-                fi
-                POLL_INTERVAL=5
-                WAIT_START_TS=$(date +%s)
-                echo "Waiting up to ${STATUS_WAIT}s for $STATUS_FILE to appear (poll every ${POLL_INTERVAL}s)..."
-                while [ $(( $(date +%s) - WAIT_START_TS )) -lt "$STATUS_WAIT" ]; do
-                  if [ -f "$STATUS_FILE" ]; then
-                    STATUS=$(cat "$STATUS_FILE" | tr -d '\r' || true)
-                    echo "Found $STATUS_FILE -> '$STATUS'"
-                    case "$STATUS" in
-                      success|0) exit 0 ;;
-                      fail|1) echo "Remote job reported fail"; exit 1 ;;
-                      *) echo "Unknown status file content: '$STATUS' — treating as failure"; exit 1 ;;
-                    esac
-                  fi
-                  sleep $POLL_INTERVAL
-                done
-        
-                echo "$STATUS_FILE did not appear after ${STATUS_WAIT}s — treating as failure"
-                exit 1
+                echo "Job $JOB_ID no longer in squeue (checked $((i+1)) times)"
+                break
               fi
-        
-              NOW_TS=$(date +%s)
-              if [ $((NOW_TS - START_TS)) -gt "$TIMEOUT" ]; then
-                echo "Timeout reached (${TIMEOUT}s), cancelling job $JOB_ID"
-                scancel "$JOB_ID" || true
-                exit 124
-              fi
-        
-              echo "Job $JOB_ID state: $STATE — sleeping 10s..."
-              sleep 10
+              echo "Job $JOB_ID state: $STATE — sleeping ${JOB_POLL_INTERVAL}s..."
+              sleep "$JOB_POLL_INTERVAL"
             done
+            
+            if [ -n "$STATE" ]; then
+              echo "Job $JOB_ID still in squeue after $((JOB_POLL_MAX * JOB_POLL_INTERVAL)) seconds; cancelling and exiting."
+              scancel "$JOB_ID" || true
+              exit 124
+            fi
+            
+            # --- wait for status file to appear and read it ---
+            STATUS_FILE="$PWD/job_status.txt"
+            STATUS_POLL_INTERVAL=10
+            STATUS_POLL_MAX=3   # 30 * 10s = 300s total
+            
+            echo "Waiting for status file $STATUS_FILE (every ${STATUS_POLL_INTERVAL}s, up to ${STATUS_POLL_MAX} attempts)..."
+            
+            for (( j=0; j<STATUS_POLL_MAX; j++ )); do
+              if [ -f "$STATUS_FILE" ]; then
+                STATUS=$(cat "$STATUS_FILE" | tr -d '\r' || true)
+                echo "Found $STATUS_FILE -> '$STATUS'"
+                case "$STATUS" in
+                  success|0)
+                    exit 0
+                    ;;
+                  fail|1)
+                    echo "Remote job reported fail"
+                    exit 1
+                    ;;
+                  *)
+                    echo "Unknown status file content: '$STATUS' — treating as failure"
+                    exit 1
+                    ;;
+                esac
+              fi
+              echo "Status file not present yet — sleeping ${STATUS_POLL_INTERVAL}s..."
+              sleep "$STATUS_POLL_INTERVAL"
+            done
+            
+            echo "$STATUS_FILE did not appear after $((STATUS_POLL_MAX * STATUS_POLL_INTERVAL)) seconds — treating as failure"
+            exit 1
+
+            # ? #
+            
+            # START_TS=$(date +%s)
+            # TIMEOUT=${{ env.SLURM_WAIT_TIMEOUT_SECONDS }}
+            # if [ -z "$TIMEOUT" ]; then TIMEOUT=3600; fi
+        
+            # STATUS_FILE="$PWD/job_status.txt"
+        
+            # while true; do
+            #   if squeue -j "$JOB_ID" -h -o "%T" >/dev/null 2>&1; then
+            #     STATE=$(squeue -j "$JOB_ID" -h -o "%T" | tr -d '\r' || true)
+            #   else
+            #     STATE=""
+            #   fi
+        
+            #   if [ -z "$STATE" ]; then
+            #     echo "Job $JOB_ID missing from squeue — checking status file..."
+        
+            #     POLL_INTERVAL=5
+            #     WAIT_START_TS=$(date +%s)
+            #     echo "Waiting up to ${STATUS_WAIT}s for $STATUS_FILE to appear (poll every ${POLL_INTERVAL}s)..."
+            #     while [ $(( $(date +%s) - WAIT_START_TS )) -lt "$STATUS_WAIT" ]; do
+            #       if [ -f "$STATUS_FILE" ]; then
+            #         STATUS=$(cat "$STATUS_FILE" | tr -d '\r' || true)
+            #         echo "Found $STATUS_FILE -> '$STATUS'"
+            #         case "$STATUS" in
+            #           success|0) exit 0 ;;
+            #           fail|1) echo "Remote job reported fail"; exit 1 ;;
+            #           *) echo "Unknown status file content: '$STATUS' — treating as failure"; exit 1 ;;
+            #         esac
+            #       fi
+            #       sleep $POLL_INTERVAL
+            #     done
+        
+            #     echo "$STATUS_FILE did not appear after ${STATUS_WAIT}s — treating as failure"
+            #     exit 1
+            #   fi
+        
+            #   NOW_TS=$(date +%s)
+            #   if [ $((NOW_TS - START_TS)) -gt "$TIMEOUT" ]; then
+            #     echo "Timeout reached (${TIMEOUT}s), cancelling job $JOB_ID"
+            #     scancel "$JOB_ID" || true
+            #     exit 124
+            #   fi
+        
+            #   echo "Job $JOB_ID state: $STATE — sleeping 10s..."
+            #   sleep 10
+            # done
 
       - id: set_slurm_status
         name: Set job output based on previous step
@@ -247,14 +273,14 @@ jobs:
             echo "as shell var: '${SLURM_STATUS}'"
             printf "len=%d\n" "${#SLURM_STATUS}"
     
-        - name: Ensure image exists locally and push to GHCR
-          if: ${{ needs['test-on-slurm'].outputs.slurm_status == 'success' }}
-          env:
-            CR_PAT: ${{ secrets.CR_PAT }}
-          run: |
-            set -euo pipefail
-            TAG="${IMAGE_NAME}:${IMAGE_TAG}"
-            echo "Logging in to ghcr.io"
-            echo "${CR_PAT}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
-            echo "Pushing $TAG"
-            docker push "$TAG"
+        # - name: Ensure image exists locally and push to GHCR
+        #   if: ${{ needs['test-on-slurm'].outputs.slurm_status == 'success' }}
+        #   env:
+        #     CR_PAT: ${{ secrets.CR_PAT }}
+        #   run: |
+        #     set -euo pipefail
+        #     TAG="${IMAGE_NAME}:${IMAGE_TAG}"
+        #     echo "Logging in to ghcr.io"
+        #     echo "${CR_PAT}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+        #     echo "Pushing $TAG"
+        #     docker push "$TAG"
