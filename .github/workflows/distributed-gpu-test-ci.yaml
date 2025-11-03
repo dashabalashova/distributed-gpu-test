@@ -240,20 +240,20 @@ jobs:
     # if: ${{ needs.test-on-slurm.result == 'success' }}
 
     runs-on: [self-hosted, docker-host]
-    steps:
-      - name: Debug show slurm_status from needs
-        run: |
-          # выводим raw-значение прямо из GitHub expression (это разворачивается до запуска shell)
-          echo "RAW needs.test-on-slurm.outputs.slurm_status: >>>${{ needs.test-on-slurm.outputs.slurm_status }}<<<"
+    # steps:
+    #   - name: Debug show slurm_status from needs
+    #     run: |
+    #       # выводим raw-значение прямо из GitHub expression (это разворачивается до запуска shell)
+    #       echo "RAW needs.test-on-slurm.outputs.slurm_status: >>>${{ needs.test-on-slurm.outputs.slurm_status }}<<<"
     
-          # присвоим в shell-переменную и почистим CR (если есть)
-          SLURM_STATUS="${{ needs.test-on-slurm.outputs.slurm_status }}"
-          SLURM_STATUS="${SLURM_STATUS//$'\r'/}"
+    #       # присвоим в shell-переменную и почистим CR (если есть)
+    #       SLURM_STATUS="${{ needs.test-on-slurm.outputs.slurm_status }}"
+    #       SLURM_STATUS="${SLURM_STATUS//$'\r'/}"
     
-          echo "as env var:"
-          echo "SLURM_STATUS='${SLURM_STATUS}'"
-          printf "len=%d\n" "${#SLURM_STATUS}"
-        shell: bash
+    #       echo "as env var:"
+    #       echo "SLURM_STATUS='${SLURM_STATUS}'"
+    #       printf "len=%d\n" "${#SLURM_STATUS}"
+    #     shell: bash
 
     if: ${{ needs['test-on-slurm'].outputs.slurm_status == 'success' }}
     # runs-on: [self-hosted, docker-host]
